@@ -2,21 +2,20 @@ const SPARQLQueryDispatcher = require('./sparql')
 const Classify = require('./ocls')
 const DataContent = require('./dataContent')
 const { db } = require('../database/sqlite')
-// const getSoggetto = require('./soggettario')
 
-const queryDispatcher = new SPARQLQueryDispatcher(30000)
+const queryDispatcher = new SPARQLQueryDispatcher(2000)
 const classify = new Classify()
 const dataContent = new DataContent()
 
 const getId = url => url.split('/').slice(-1).pop().replace('.json', '')
 
-function addToDb ({ code, url, isbn, deweyCodeList, descriptions, res }) {
-  const stmtTrainingData = db.prepare('INSERT OR REPLACE INTO TrainingData VALUES (?, ?, ?, ?)')
+function addToDb ({ code, url, isbn, deweyCodeList, metadata, res }) {
+  const stmtTrainingData = db.prepare('INSERT OR REPLACE INTO TrainingData VALUES (?, ?, ?, ?, ?)')
   const stmtRelTb = db.prepare('INSERT OR REPLACE INTO data_x_dewey VALUES (?, ?, ?)')
 
   console.log(code, url, isbn, deweyCodeList, res)
 
-  stmtTrainingData.run(url, descriptions, code, isbn)
+  stmtTrainingData.run(url, metadata, code, isbn.replace(/-/g, ''), null)
   stmtTrainingData.finalize()
   for (let index = 0; index < deweyCodeList.length; index++) {
     const deweyCode = deweyCodeList[index]
@@ -57,20 +56,20 @@ async function run () {
           return parseFloat(split.join('.'))
         })
 
-        const descriptions = ww.map(info => info.value).join('\n')
+        const metadata = Array.from(new Set(ww.map(info => info.value))).join('\n')
         addToDb({
           code,
           url,
           isbn: isbn || null,
           deweyCodeList,
-          descriptions,
+          metadata,
           res
         })
       } catch (err) {
-        // console.error(err)
+        console.error(err)
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // await new Promise(resolve => setTimeout(resolve, 1000))
     }
     return true
   } catch (err) {

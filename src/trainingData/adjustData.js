@@ -1,36 +1,51 @@
 const { db } = require('../database/sqlite')
 
-db.serialize(async () => {
-  const isbns = await db.all('SELECT id, isbn, description FROM TrainingData WHERE isbn IS NOT NULL ORDER BY oclc')
-  const stmt = db.prepare('UPDATE TrainingData SET isbn = ?, description = ? WHERE id = ?')
-  isbns.forEach(data => {
-    const { id, isbn, description } = data
-    const uniqueLine = new Set()
-    description.split('\n').forEach(line => {
-      uniqueLine.add(line)
-    })
-    const newDescription = Array.from(uniqueLine.values()).join('\n')
-    stmt.run((isbn.replace(/-/g, '')), newDescription, id)
-  })
-  stmt.finalize()
+db.serialize(() => {
+  // db.all('SELECT id, isbn, metadata FROM TrainingData WHERE isbn IS NOT NULL ORDER BY oclc', [], (err, isbns) => {
+  //   if (err) {
+  //     console.log(err)
+  //     return
+  //   }
+  //   isbns.forEach(data => {
+  //     const { id, isbn, metadata } = data
+  //     const uniqueLine = new Set()
+  //     metadata.split('\n').forEach(line => {
+  //       uniqueLine.add(line)
+  //     })
+  //     const newMetadata = Array.from(uniqueLine.values()).join('\n')
+  //     db.run('UPDATE TrainingData SET isbn = ?, metadata = ? WHERE id = ?', [(isbn.replace(/-/g, '')), newMetadata, id])
+  //   })
+  //   console.log('salvato')
+  // })
 
-  const deweyX = await db.all('SELECT data_id as data, dewey_id as dewey, real_dewey as real FROM data_x_dewey')
-  const stmt2 = db.prepare('UPDATE data_x_dewey SET dewey_id = ? WHERE data_id = ? AND real_dewey = ?')
+  db.all('SELECT data_id as data, dewey_id as dewey, real_dewey as real FROM data_x_dewey', [], (err, deweyX) => {
+    if (err) {
+      console.log(err)
+      return
+    }
 
-  deweyX.forEach(async ddc => {
-    const { data, dewey, real } = ddc
+    deweyX.forEach(ddc => {
+      let { data, dewey, real } = ddc
 
-    let repairDewey = dewey.split('.')
-    if (repairDewey[0].length < 3) {
-      repairDewey[0] = repairDewey[0].padStart(3, '0')
+      const split = real.toString().split('.')
+      if (split[1]) {
+        split[1] = split[1].substring(0, 1)
+      }
+      dewey = parseFloat(split.join('.'))
+
+      let repairDewey = dewey.toString().split('.')
+      if (repairDewey[0].length < 3) {
+        repairDewey[0] = repairDewey[0].padStart(3, '0')
+      }
       repairDewey = repairDewey.join('.')
-    }
-    const isPresent = await db.get('SELECT * FROM dewey WHERE id = ?', [repairDewey])
-    if (!isPresent || !isPresent.id) {
-      repairDewey = repairDewey.split('.')[0]
-    }
-
-    stmt2.run(repairDewey, data, real)
+      console.log(repairDewey)
+      db.all('SELECT COUNT(*) as count FROM dewey WHERE id = ?', [repairDewey], record => {
+        if (record && record[0].count === 0) {
+          repairDewey = repairDewey.split('.')[0]
+        }
+        db.run('UPDATE data_x_dewey SET dewey_id = ? WHERE data_id = ? AND real_dewey = ?', [repairDewey, data, real])
+      })
+    })
   })
-  db.close()
+  // db.close()
 })

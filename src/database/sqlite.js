@@ -20,8 +20,9 @@ function init () {
   )`
   const tableTrainingData = `CREATE TABLE TrainingData (
     id TEXT NOT NULL,
-    description TEXT NOT NULL,
+    metadata TEXT NOT NULL,
     oclc TEXT NOT NULL,
+    description TEXT,
     isbn TEXT,
     CONSTRAINT TrainingData_PK PRIMARY KEY (id)
   )`

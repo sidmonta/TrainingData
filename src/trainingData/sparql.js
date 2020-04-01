@@ -4,7 +4,7 @@ class SPARQLQueryDispatcher {
   constructor (offset) {
     this.endpoint = 'https://query.wikidata.org/sparql'
     this.sparqlQuery = `SELECT ?item ?code ?isbn WHERE {
-  ?item wdt:P243 ?code. ?item wdt:P212 ?isbn .} LIMIT 10000 OFFSET ${offset}`
+  ?item wdt:P243 ?code. ?item wdt:P212 ?isbn .}`
   }
 
   query () {
@@ -14,12 +14,7 @@ class SPARQLQueryDispatcher {
 
     return fetch(fullUrl, { headers })
       .then(body => body.json())
-      .then(
-        data =>
-          new Promise(resolve => {
-            resolve(data.results.bindings)
-          })
-      )
+      .then(data => data.results.bindings)
   }
 }
 

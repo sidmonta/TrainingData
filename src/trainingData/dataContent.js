@@ -23,17 +23,16 @@ class SPARQLQueryDispatcher {
     return fetch(fullUrl, { headers })
       .then(body => body.json())
       .then(
-        data =>
-          new Promise(resolve => {
-            resolve(
-              data.results.bindings.map(dd => {
-                const value = dd.valueLabel.value
-                const label = dd.label.value
-
-                return { label, value }
-              })
-            )
+        data => new Promise(resolve => {
+          const metadata = new Set()
+          data.results.bindings.forEach(dd => {
+            metadata.add({
+              label: dd.label.value,
+              value: dd.valueLabel.value
+            })
           })
+          resolve(Array.from(metadata.values()))
+        })
       )
   }
 }

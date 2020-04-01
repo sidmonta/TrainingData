@@ -2,7 +2,7 @@ const fetch = require('node-fetch')
 const { db } = require('../database/sqlite')
 
 db.serialize(async () => {
-  db.all('SELECT id, description, isbn FROM TrainingData WHERE isbn IS NOT NULL ORDER BY oclc', [], async (err, rows) => {
+  db.all('SELECT id, metadata, isbn FROM TrainingData WHERE isbn IS NOT NULL ORDER BY oclc', [], async (err, rows) => {
     if (err) {
       console.error(err)
     }
@@ -17,10 +17,10 @@ db.serialize(async () => {
         }).then(data => data.json())
 
         if (result.totalItems) {
-          const descr = result.items[0].volumeInfo.description
+          const descr = result.items.reduce((desc, item) =>
+            desc + item.volumeInfo.description + '\n', '')
           if (descr) {
-            book.description = book.description + '\n' + descr
-            db.run('UPDATE TrainingData SET description = ? WHERE id = ?', book.description, book.id)
+            db.run('UPDATE TrainingData SET description = ? WHERE id = ?', descr.trim(), book.id)
             console.log(descr)
           }
         }
