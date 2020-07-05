@@ -2,7 +2,7 @@ const fetch = require('node-fetch')
 const { db } = require('../database/sqlite')
 
 db.serialize(async () => {
-  db.all('SELECT id, metadata, isbn FROM TrainingData WHERE isbn IS NOT NULL ORDER BY oclc', [], async (err, rows) => {
+  db.all('SELECT id, metadata, isbn FROM TrainingData WHERE isbn IS NOT NULL AND desription IS NOT NULL ORDER BY isbn', [], async (err, rows) => {
     if (err) {
       console.error(err)
     }
