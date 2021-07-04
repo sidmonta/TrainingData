@@ -1,4 +1,5 @@
 const fetch = require('node-fetch')
+const logger = require('pino')()
 
 class SPARQLQueryDispatcherWikidata {
   constructor(offset) {
@@ -22,7 +23,7 @@ class SPARQLQueryDispatcherWikidata {
     const fullUrl =
       this.endpoint + '?query=' + encodeURIComponent(this.sparqlQueryList)
     const headers = { Accept: 'application/sparql-results+json' }
-    console.log(fullUrl)
+    logger.debug(`[wikidata] process list ${fullUrl}`)
     return fetch(fullUrl, { headers })
       .then((body) => body.json())
       .then((data) => data.results.bindings)
@@ -35,13 +36,14 @@ class SPARQLQueryDispatcherWikidata {
       '?query=' +
       encodeURIComponent(this.sparqlQueryMetadata(url))
     const headers = { Accept: 'application/sparql-results+json' }
-    console.log(url)
+    logger.debug(`[wikidata] process metadata ${fullUrl}`)
     return fetch(fullUrl, { headers })
       .then((body) => body.json())
       .then(
         (data) =>
           new Promise((resolve) => {
             const metadata = new Set()
+            logger.debug(`[wikidata] return metadata %o`, data.results.bindings)
             data.results.bindings.forEach((dd) => {
               metadata.add({
                 label: dd.label.value,

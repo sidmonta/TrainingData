@@ -1,3 +1,5 @@
+const logger = require('pino')()
+
 const SPARQLQueryDispatcherWikidata = require('./trainingData/Wikidata')
 const Classify = require('./trainingData/ocls')
 const GoogleDescription = require('./trainingData/googleDescription')
@@ -27,23 +29,26 @@ function addToDb({
     'INSERT OR REPLACE INTO data_x_dewey VALUES (?, ?, ?)'
   )
 
-  // stmtTrainingData.run(url, metadata, code, isbn.replace(/-/g, ''), description)
+  // stmtTrainingData.run(url, metadata, code, isbn, description)
   // stmtTrainingData.finalize()
+  // logger.info(`[main] [${getId(url)}] save training data to DB`)
   // for (let index = 0; index < deweyCodeList.length; index++) {
   //   const deweyCode = deweyCodeList[index]
   //   const deweyRealCode = res[index]
 
   //   stmtRelTb.run(url, deweyCode, deweyRealCode)
   // }
+  // logger.info(`[main] [${getId(url)}] save dewey map to DB`)
   // stmtRelTb.finalize()
 
   return true
 }
 
 async function run() {
+  logger.info('[main] start execution')
   try {
     const wikiData = await queryDispatcher.list()
-    console.log(`Find ${wikiData.length} Wikidata books`)
+    logger.info(`[main] elaborate ${wikiData.length} of Wikidata books`)
     for (const index in wikiData) {
       const data = wikiData[index]
       const code = data.code.value
@@ -51,19 +56,25 @@ async function run() {
       const isbn = data.isbn.value.replace(/-/g, '')
 
       const id = getId(url)
+      logger.info(`[main] [${id}] start elaborate ${id} books`)
+      logger.debug(`[main] [${id}] elaborate %o`, { code, url, isbn, id })
 
       try {
         const res = await classify.query(code, isbn)
         if (!res.length) {
+          logger.warn(
+            `[main] [${id}] no DEWEY found for OCLC=${code} or ISBN=${isbn}`
+          )
           continue
         }
-
+        logger.debug(`[main] [${id}] dewey %o`, res)
         const wikidataMetadata = await queryDispatcher.content(id)
         const metadata = Array.from(
           new Set(wikidataMetadata.map(({ value }) => value))
         ).join('\n')
-
+        logger.debug(`[main] [${id}] metadata %s`, metadata)
         const descr = await googleDesc.getDescription(isbn)
+        logger.debug(`[main] [${id}] description %s`, descr)
 
         addToDb({
           code,
@@ -75,6 +86,7 @@ async function run() {
           res,
         })
       } catch (err) {
+        logger.error(err)
         console.error(err)
       }
 
@@ -82,7 +94,7 @@ async function run() {
     }
     return true
   } catch (err) {
-    console.error(err)
+    logger.fatal(err)
   }
 
   return false

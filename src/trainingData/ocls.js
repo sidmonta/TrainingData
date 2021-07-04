@@ -1,9 +1,11 @@
 const fetch = require('node-fetch')
+const logger = require('pino')()
 const { JSDOM } = require('jsdom')
 
 const getDDC = (xml) =>
   new Promise((resolve) => {
     const xmlDoc = new JSDOM(xml).window.document
+    logger.debug(`[OCLC] extract xml %s`, xml)
     const r = Array.from(xmlDoc.querySelectorAll('ddc > [sfa]'))
       .map((elem) => parseFloat(elem.attributes.sfa.value))
       .filter((d) => d)
@@ -24,7 +26,7 @@ class Classify {
 
     try {
       const data = await Promise.all([promiseOclc, promiseIsbn])
-
+      console.log(data)
       const deweyCodeList = data.flat().map((dewey) => {
         const split = dewey.toString().split('.')
         if (split[1]) {
@@ -42,12 +44,14 @@ class Classify {
   }
 
   _queryOclc(oclc) {
+    logger.debug(`[OCLC] get data for OCLC ID %s`, oclc)
     return fetch(this.queryConstructor(oclc, 'olcl'), { headers: this.headers })
       .then((data) => data.text())
       .then(getDDC)
   }
 
   _queryIsbn(isbn) {
+    logger.debug(`[OCLC] get data for ISBN ID %s`, isbn)
     return fetch(this.queryConstructor(isbn, 'isbn'), { headers: this.headers })
       .then((data) => data.text())
       .then(getDDC)
