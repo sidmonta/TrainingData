@@ -1,12 +1,12 @@
 const path = require('path')
 const fs = require('fs')
-const sqlite3 = require('sqlite3').verbose()
-const dbPath = path.resolve(__dirname, '../..', 'database.db')
+const BetterSqlite3 = require('better-sqlite3')
+const dbPath = path.resolve(__dirname, '../..', 'database-new.db')
 
 const dbExist = fs.existsSync(dbPath)
-const db = new sqlite3.Database(dbPath)
+const db = new BetterSqlite3(dbPath)
 
-function init () {
+function init() {
   // Create Table
   const tableDewey = `CREATE TABLE IF NOT EXISTS dewey (
     id TEXT PRIMARY KEY,
@@ -40,11 +40,24 @@ function init () {
   db.run(tableDeweyXTraining)
 }
 if (!dbExist) {
-  db.serialize(function () {
+  db.transaction(function () {
     init()
   })
 }
 
+const initDb = (dbPathArg) => {
+  const dbExist = fs.existsSync(dbPathArg)
+  const db = new BetterSqlite3(dbPathArg)
+  if (!dbExist) {
+    db.transaction(function () {
+      init()
+    })
+  }
+  return db
+}
+
 module.exports = {
-  db, dbPath
+  db,
+  dbPath,
+  initDb,
 }

@@ -1,36 +1,39 @@
 const fetch = require('node-fetch')
 const { db } = require('../database/sqlite')
+const GoogleDescription = require('./googleDescription')
 
-db.all('SELECT id, metadata, isbn FROM TrainingData WHERE isbn IS NOT NULL AND description IS NULL', [], async (err, rows) => {
-  if (err) {
-    console.error(err)
-  }
-  for (const index in rows) {
-    const book = rows[index]
-    const isbn = book.isbn.replace(/-/g, '')
-    console.log(isbn)
-    try {
-      const result = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`, {
-        headers:
-          { Accept: 'application/json' }
-      }).then(data => data.json())
+const googleDesc = new GoogleDescription()
 
-      if (result.totalItems) {
-        const descr = result.items.reduce((desc, item) =>
-          desc + item.volumeInfo.description + '\n', '')
+db.all(
+  'SELECT id, metadata, isbn FROM TrainingData WHERE isbn IS NOT NULL AND description IS NULL',
+  [],
+  async (err, rows) => {
+    if (err) {
+      console.error(err)
+    }
+    for (const index in rows) {
+      const book = rows[index]
+      const isbn = book.isbn.replace(/-/g, '')
+      console.log(isbn)
+      try {
+        const descr = await googleDesc.getDescription(isbn)
         if (descr) {
           try {
-            db.run('UPDATE TrainingData SET description = ? WHERE id = ?', descr.trim(), book.id)
+            db.run(
+              'UPDATE TrainingData SET description = ? WHERE id = ?',
+              descr,
+              book.id
+            )
             console.log(descr)
           } catch (err) {
             console.log(err)
           }
         }
+      } catch (err) {
+        console.error(err)
       }
-    } catch (err) {
-      console.error(err)
+      await new Promise((resolve) => setTimeout(resolve, 2000))
     }
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    db.close()
   }
-  db.close()
-})
+)
