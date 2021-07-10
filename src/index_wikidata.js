@@ -25,6 +25,12 @@ const db = initDb(dbPath)
 const stmtDeweyExists = db.prepare(
   "SELECT COUNT(*) as 'c' FROM dewey WHERE id = ?"
 )
+const stmtTrainingData = db.prepare(
+  'INSERT OR REPLACE INTO TrainingData VALUES (?, ?, ?, ?, ?)'
+)
+const stmtRelTb = db.prepare(
+  'INSERT OR REPLACE INTO data_x_dewey VALUES (?, ?, ?)'
+)
 
 const deweyExists = (dewey) => {
   const d = stmtDeweyExists.get(dewey)
@@ -44,12 +50,6 @@ function addToDb({
   description,
   res,
 }) {
-  const stmtTrainingData = db.prepare(
-    'INSERT OR REPLACE INTO TrainingData VALUES (?, ?, ?, ?, ?)'
-  )
-  const stmtRelTb = db.prepare(
-    'INSERT OR REPLACE INTO data_x_dewey VALUES (?, ?, ?)'
-  )
   stmtTrainingData.run(url, metadata, code, isbn, description)
   logger.info(`[main] [${getId(url)}] save training data to DB`)
   for (let index = 0; index < deweyCodeList.length; index++) {

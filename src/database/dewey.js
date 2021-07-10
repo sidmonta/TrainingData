@@ -12,7 +12,7 @@ const db = initDb(dbPath)
 function getDeweyMatch(line) {
   let m
   let res = false
-  if ((m = /^(\d{3}\.\d+)/.exec(line)) !== null) {
+  if ((m = /^(\d{3}(?:\.\d+)?)/.exec(line)) !== null) {
     m.forEach((match, groupIndex) => {
       res = match
     })
@@ -32,7 +32,7 @@ function extractParent(dewey) {
   return parent
 }
 
-function extractRecordType2(line) {
+function extractRecordType(line) {
   const dewey = getDeweyMatch(line)
   if (dewey) {
     line = line.replace(dewey, '').trim()
@@ -54,7 +54,7 @@ const readInterface = readline.createInterface({
   console: false,
 })
 
-readInterface.on('line', extractRecordType2)
+readInterface.on('line', extractRecordType)
 
 readInterface.on('close', () => {
   const tableDewey = `CREATE TABLE IF NOT EXISTS dewey (
@@ -72,18 +72,18 @@ readInterface.on('close', () => {
 
   // Fix hierarchy
   // Set root category
-  // db.exec(`UPDATE dewey SET parent = NULL WHERE parent = id`)
-  // // Add new root category with id as first dewey value (es: 1 for 100)
-  // db.exec(
-  //   `INSERT INTO dewey SELECT SUBSTR(id, 1, 1) as 'id', name, parent FROM dewey WHERE parent IS NULL AND length(id) = 3`
-  // )
-  // // Set prev root as child of new root
-  // db.exec(
-  //   `UPDATE dewey SET parent = SUBSTR(id, 1, 1) WHERE id LIKE "%00" AND length(id) = 3 AND parent IS NULL`
-  // )
-  // // Set child of prev root as child of new root
-  // db.exec(
-  //   `UPDATE dewey SET parent = SUBSTR(id, 1, 1) WHERE id LIKE "%0" AND length(id) = 3 AND LENGTH(parent) = 3`
-  // )
-  // db.close()
+  db.exec(`UPDATE dewey SET parent = NULL WHERE parent = id`)
+  // Add new root category with id as first dewey value (es: 1 for 100)
+  db.exec(
+    `INSERT INTO dewey SELECT SUBSTR(id, 1, 1) as 'id', name, parent FROM dewey WHERE parent IS NULL AND length(id) = 3`
+  )
+  // Set prev root as child of new root
+  db.exec(
+    `UPDATE dewey SET parent = SUBSTR(id, 1, 1) WHERE id LIKE "%00" AND length(id) = 3 AND parent IS NULL`
+  )
+  // Set child of prev root as child of new root
+  db.exec(
+    `UPDATE dewey SET parent = SUBSTR(id, 1, 1) WHERE id LIKE "%0" AND length(id) = 3 AND LENGTH(parent) = 3`
+  )
+  db.close()
 })
