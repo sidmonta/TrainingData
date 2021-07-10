@@ -1,4 +1,14 @@
-const logger = require('pino')()
+const logger = require('pino')({
+  level: 'debug',
+  formatters: {
+    level(label) {
+      return { level: label }
+    },
+    bindings(bindings) {
+      return {}
+    },
+  },
+})
 
 const SPARQLQueryDispatcherWikidata = require('./trainingData/Wikidata')
 const Classify = require('./trainingData/ocls')
@@ -12,6 +22,18 @@ const googleDesc = new GoogleDescription()
 const getId = (url) => url.split('/').slice(-1).pop().replace('.json', '')
 
 const db = initDb(dbPath)
+const stmtDeweyExists = db.prepare(
+  "SELECT COUNT(*) as 'c' FROM dewey WHERE id = ?"
+)
+
+const deweyExists = (dewey) => {
+  const d = stmtDeweyExists.get(dewey)
+  if (d.c > 0) {
+    return true
+  }
+  logger.warn(`[main] Dewey ${dewey} not exists in DB`)
+  return false
+}
 
 function addToDb({
   code,
@@ -28,18 +50,19 @@ function addToDb({
   const stmtRelTb = db.prepare(
     'INSERT OR REPLACE INTO data_x_dewey VALUES (?, ?, ?)'
   )
-
-  // stmtTrainingData.run(url, metadata, code, isbn, description)
-  // stmtTrainingData.finalize()
-  // logger.info(`[main] [${getId(url)}] save training data to DB`)
-  // for (let index = 0; index < deweyCodeList.length; index++) {
-  //   const deweyCode = deweyCodeList[index]
-  //   const deweyRealCode = res[index]
-
-  //   stmtRelTb.run(url, deweyCode, deweyRealCode)
-  // }
-  // logger.info(`[main] [${getId(url)}] save dewey map to DB`)
-  // stmtRelTb.finalize()
+  stmtTrainingData.run(url, metadata, code, isbn, description)
+  logger.info(`[main] [${getId(url)}] save training data to DB`)
+  for (let index = 0; index < deweyCodeList.length; index++) {
+    const deweyCode = deweyCodeList[index]
+    const deweyRealCode = res[index]
+    logger.debug(
+      `[main] [${getId(
+        url
+      )}] insert in map table ${url}-${deweyCode}-${deweyRealCode}`
+    )
+    stmtRelTb.run(url, deweyCode, deweyRealCode)
+  }
+  logger.info(`[main] [${getId(url)}] save dewey map to DB`)
 
   return true
 }
@@ -72,9 +95,19 @@ async function run() {
         const metadata = Array.from(
           new Set(wikidataMetadata.map(({ value }) => value))
         ).join('\n')
-        logger.debug(`[main] [${id}] metadata %s`, metadata)
+        logger.debug(`[main] [${id}] metadata #${wikidataMetadata.length}`)
         const descr = await googleDesc.getDescription(isbn)
-        logger.debug(`[main] [${id}] description %s`, descr)
+
+        const deweyCodeList = res.map((dewey) => {
+          const split = dewey.toString().split('.')
+          if (split[1]) {
+            split[1] = split[1].substring(0, 1)
+          }
+          if (deweyExists(parseFloat(split.join('.')))) {
+            return parseFloat(split.join('.'))
+          }
+          return parseFloat(split[0])
+        })
 
         addToDb({
           code,

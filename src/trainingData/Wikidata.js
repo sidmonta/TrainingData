@@ -1,5 +1,15 @@
 const fetch = require('node-fetch')
-const logger = require('pino')()
+const logger = require('pino')({
+  level: 'debug',
+  formatters: {
+    level(label) {
+      return { level: label }
+    },
+    bindings(bindings) {
+      return {}
+    },
+  },
+})
 
 class SPARQLQueryDispatcherWikidata {
   constructor(offset) {
@@ -43,7 +53,9 @@ class SPARQLQueryDispatcherWikidata {
         (data) =>
           new Promise((resolve) => {
             const metadata = new Set()
-            logger.debug(`[wikidata] return metadata %o`, data.results.bindings)
+            logger.debug(
+              `[wikidata] found some metadata. Number ${data.results.bindings.length}`
+            )
             data.results.bindings.forEach((dd) => {
               metadata.add({
                 label: dd.label.value,

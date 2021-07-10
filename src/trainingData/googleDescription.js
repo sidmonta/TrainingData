@@ -1,4 +1,15 @@
-const logger = require('pino')()
+const fetch = require('node-fetch')
+const logger = require('pino')({
+  level: 'debug',
+  formatters: {
+    level(label) {
+      return { level: label }
+    },
+    bindings(bindings) {
+      return {}
+    },
+  },
+})
 
 class GoogleDescription {
   constructor() {
@@ -13,7 +24,9 @@ class GoogleDescription {
     }).then((data) => data.json())
     let descr = ''
     if (result.totalItems) {
-      logger.debug(`[google] found description for ${isbn}: %o`, result.items)
+      logger.debug(
+        `[google] found description for ${isbn}. Number=${result.items.length}`
+      )
       descr = result.items.reduce(
         (desc, item) => desc + item.volumeInfo.description + '\n',
         ''

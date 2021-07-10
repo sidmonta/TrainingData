@@ -1,11 +1,13 @@
 const fs = require('fs')
 const readline = require('readline')
 const path = require('path')
-const { db } = require('./sqlite')
+const { initDb, dbPath } = require('./sqlite')
 
 const deweyFile = path.resolve(__dirname, '../..', 'dewey.csv')
 
 const deweyMap = new Map()
+
+const db = initDb(dbPath)
 
 function getDeweyMatch(line) {
   let m
@@ -50,7 +52,7 @@ function extractRecordType1(line) {
     const record = {
       dewey,
       parent,
-      title: line
+      title: line,
     }
 
     deweyMap.set(dewey, record)
@@ -67,7 +69,7 @@ function extractRecordType2(line) {
     deweyMap.set(dewey, {
       dewey,
       parent,
-      title: line
+      title: line,
     })
   }
 }
@@ -75,7 +77,7 @@ function extractRecordType2(line) {
 const readInterface = readline.createInterface({
   input: fs.createReadStream(deweyFile),
   output: process.stdout,
-  console: false
+  console: false,
 })
 
 readInterface.on('line', function (line) {
@@ -87,30 +89,33 @@ readInterface.on('line', function (line) {
 })
 
 readInterface.on('close', () => {
-  db.serialize(() => {
-    const tableDewey = `CREATE TABLE IF NOT EXISTS dewey (
+  const tableDewey = `CREATE TABLE IF NOT EXISTS dewey (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       parent TEXT
     )`
-    db.run(tableDewey)
+  db.exec(tableDewey)
+  db.exec(`DELETE FROM dewey`)
 
-    const stmt = db.prepare('INSERT OR REPLACE INTO dewey VALUES (?, ?, ?)')
-    for (const row of deweyMap.values()) {
-      stmt.run(row.dewey, row.title, row.parent)
-    }
-    stmt.finalize()
+  const stmt = db.prepare('INSERT OR REPLACE INTO dewey VALUES (?, ?, ?)')
+  for (const row of deweyMap.values()) {
+    stmt.run(row.dewey, row.title, row.parent)
+  }
 
-
-    // Fix hierarchy
-    // Set root category
-    db.run(`UPDATE dewey SET parent = NULL WHERE parent = id`)
-    // Add new root category with id as first dewey value (es: 1 for 100)
-    db.run(`INSERT INTO dewey SELECT SUBSTR(id, 1, 1) as 'id', name, parent FROM dewey WHERE parent IS NULL AND length(id) = 3`)
-    // Set prev root as child of new root
-    db.run(`UPDATE dewey SET parent = SUBSTR(id, 1, 1) WHERE id LIKE "%00" AND length(id) = 3 AND parent IS NULL`)
-    // Set child of prev root as child of new root
-    db.run(`UPDATE dewey SET parent = SUBSTR(id, 1, 1) WHERE id LIKE "%0" AND length(id) = 3 AND LENGTH(parent) = 3`)
-  })
-  db.close()
+  // Fix hierarchy
+  // Set root category
+  // db.exec(`UPDATE dewey SET parent = NULL WHERE parent = id`)
+  // // Add new root category with id as first dewey value (es: 1 for 100)
+  // db.exec(
+  //   `INSERT INTO dewey SELECT SUBSTR(id, 1, 1) as 'id', name, parent FROM dewey WHERE parent IS NULL AND length(id) = 3`
+  // )
+  // // Set prev root as child of new root
+  // db.exec(
+  //   `UPDATE dewey SET parent = SUBSTR(id, 1, 1) WHERE id LIKE "%00" AND length(id) = 3 AND parent IS NULL`
+  // )
+  // // Set child of prev root as child of new root
+  // db.exec(
+  //   `UPDATE dewey SET parent = SUBSTR(id, 1, 1) WHERE id LIKE "%0" AND length(id) = 3 AND LENGTH(parent) = 3`
+  // )
+  // db.close()
 })

@@ -1,12 +1,24 @@
 const path = require('path')
 const fs = require('fs')
 const BetterSqlite3 = require('better-sqlite3')
+const logger = require('pino')({
+  level: 'debug',
+  formatters: {
+    level(label) {
+      return { level: label }
+    },
+    bindings(bindings) {
+      return {}
+    },
+  },
+})
 const dbPath = path.resolve(__dirname, '../..', 'database-new.db')
 
-const dbExist = fs.existsSync(dbPath)
-const db = new BetterSqlite3(dbPath)
+// const dbExist = fs.existsSync(dbPath)
+// const db = new BetterSqlite3(dbPath)
 
-function init() {
+function init(db) {
+  console.log('dentro')
   // Create Table
   const tableDewey = `CREATE TABLE IF NOT EXISTS dewey (
     id TEXT PRIMARY KEY,
@@ -34,30 +46,33 @@ function init() {
     CONSTRAINT data_x_dewey_FK FOREIGN KEY (dewey_id) REFERENCES dewey(id) ON DELETE SET NULL,
     CONSTRAINT data_x_dewey_FK_1 FOREIGN KEY (data_id) REFERENCES TrainingData(id)
   )`
-  db.run(tableDewey)
-  db.run(tableSoggettario)
-  db.run(tableTrainingData)
-  db.run(tableDeweyXTraining)
+  db.exec(tableDewey)
+  db.exec(tableSoggettario)
+  db.exec(tableTrainingData)
+  db.exec(tableDeweyXTraining)
+  logger.info(`[db] success init db`)
 }
-if (!dbExist) {
-  db.transaction(function () {
-    init()
-  })
-}
+// if (!dbExist) {
+//   db.transaction(function () {
+//     init()
+//   })
+// }
 
 const initDb = (dbPathArg) => {
   const dbExist = fs.existsSync(dbPathArg)
   const db = new BetterSqlite3(dbPathArg)
+  console.log(dbPathArg, dbExist)
   if (!dbExist) {
-    db.transaction(function () {
-      init()
-    })
+    logger.info(`[db] db not exist in ${dbPathArg}. Init it`)
+    init(db)
+  } else {
+    logger.info(`[db] db exist in ${dbPathArg}`)
   }
   return db
 }
 
 module.exports = {
-  db,
+  // db,
   dbPath,
   initDb,
 }
