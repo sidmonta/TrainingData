@@ -12,17 +12,6 @@ const db = initDb(dbPath)
 function getDeweyMatch(line) {
   let m
   let res = false
-  if ((m = /\((\d+)\)/.exec(line)) !== null) {
-    m.forEach((match, groupIndex) => {
-      res = match
-    })
-  }
-  return res
-}
-
-function getDeweyMatch2(line) {
-  let m
-  let res = false
   if ((m = /^(\d{3}\.\d+)/.exec(line)) !== null) {
     m.forEach((match, groupIndex) => {
       res = match
@@ -31,40 +20,25 @@ function getDeweyMatch2(line) {
   return res
 }
 
-function extractRecordType1(line) {
-  const dewey = getDeweyMatch(line)
-  line = line.replace(`(${dewey})`, '').trim()
-  if (dewey) {
-    let parent = dewey.split('')
-    const currentSelect = parent.pop()
-    if (currentSelect === '0') {
-      parent.pop()
-      parent = parent + '00'
-    } else {
-      parent = parent.join('') + '0'
-    }
-
-    if (deweyMap.has(parent)) {
-      const titleToRemove = deweyMap.get(parent).title
-      line = line.replace(titleToRemove, '').trim()
-    }
-
-    const record = {
-      dewey,
-      parent,
-      title: line,
-    }
-
-    deweyMap.set(dewey, record)
+function extractParent(dewey) {
+  let parent = dewey.split('')
+  const currentSelect = parent.pop()
+  if (currentSelect === '0') {
+    parent.pop()
+    parent = parent + '00'
+  } else {
+    parent = parent.join('') + '0'
   }
+  return parent
 }
 
 function extractRecordType2(line) {
-  const dewey = getDeweyMatch2(line)
+  const dewey = getDeweyMatch(line)
   if (dewey) {
     line = line.replace(dewey, '').trim()
 
-    const parent = dewey.split('.')[0]
+    const parent =
+      dewey.indexOf('.') > 0 ? dewey.split('.')[0] : extractParent(dewey)
 
     deweyMap.set(dewey, {
       dewey,
@@ -80,13 +54,7 @@ const readInterface = readline.createInterface({
   console: false,
 })
 
-readInterface.on('line', function (line) {
-  if (line[0] === '(') {
-    extractRecordType1(line)
-  } else {
-    extractRecordType2(line)
-  }
-})
+readInterface.on('line', extractRecordType2)
 
 readInterface.on('close', () => {
   const tableDewey = `CREATE TABLE IF NOT EXISTS dewey (
